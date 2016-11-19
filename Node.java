@@ -52,73 +52,90 @@ public class Node {
 		if (rcvdpkt.destid != this.nodename) {
 			return;
 		} else {
-			boolean shouldUpdateAll = false;
+			// boolean shouldUpdateAll = false;
 			// If we have all INFINITY values for the sourceID we should update
 			// all.
 			// For the intial setup of the cost array
+			// for (int i = 0; i < 4; i++) {
+			// if (this.costs[rcvdpkt.sourceid][i] != INFINITY) {
+			// break;
+			// } else if (i == 3 && this.costs[rcvdpkt.sourceid][i] == INFINITY)
+			// {
+			// shouldUpdateAll = true;
+			// }
+			// }
+			// if (shouldUpdateAll) {
+			
 			for (int i = 0; i < 4; i++) {
-				if (this.costs[rcvdpkt.sourceid][i] != INFINITY) {
-					break;
-				} else if (i == 3 && this.costs[rcvdpkt.sourceid][i] == INFINITY) {
-					shouldUpdateAll = true;
+				// Updates all the values in the cost vector to what has
+				// been sent to us.
+//				this.costs[rcvdpkt.sourceid][i] = rcvdpkt.mincost[i];
+//				if (i == this.nodename) {
+//					int currCostToSrc = this.costs[this.nodename][rcvdpkt.sourceid];
+//					int srcCostToMe = rcvdpkt.mincost[i];
+//					if (srcCostToMe < currCostToSrc) {
+//						this.costs[this.nodename][rcvdpkt.sourceid] = srcCostToMe;
+//						this.costs[rcvdpkt.sourceid][this.nodename] = srcCostToMe;
+//					}
+//				}
+				int costValForI = rcvdpkt.mincost[i];
+				int myCostForSrcToI = this.costs[rcvdpkt.sourceid][i];
+				if(costValForI < myCostForSrcToI){
+					this.costs[rcvdpkt.sourceid][i] = costValForI;
+					this.costs[i][rcvdpkt.sourceid] = costValForI;
 				}
 			}
-			if (shouldUpdateAll) {
+//			for (int i = 0; i < 4; i++) {
+//				int currCostForI = this.costs[rcvdpkt.sourceid][i];
+//				int newCost = rcvdpkt.mincost[i];
+//				if (newCost < currCostForI) {
+//					this.costs[rcvdpkt.sourceid][i] = newCost;
+//					this.costs[i][rcvdpkt.sourceid] = newCost;
+//				}
+//			}
+			boolean switchMade = false;
+			boolean[] changed = new boolean[4];
+			for (int i = 0; i < 4; i++) // Find the minumum for each path to
+										// each node.
+			{
+				int costToI = this.costs[this.nodename][i];
+				for (int j = 0; j < 4; j++) {
+					int costToNextHop = this.costs[this.nodename][j];
+					int theirCostToI = this.costs[j][i];
+					int totalCostWithPotentialHop = costToNextHop + theirCostToI;
+					if (totalCostWithPotentialHop < costToI) {
+						this.costs[this.nodename][i] = totalCostWithPotentialHop;
+						this.costs[i][this.nodename] = totalCostWithPotentialHop;
+						costToI = totalCostWithPotentialHop;
+						switchMade = true;
+						changed[i] = true;
+					}
+				}
+			}
+			if (switchMade) {
 				for (int i = 0; i < 4; i++) {
-					// Updates all the values in the cost vector to what has
-					// been sent to us.
-					this.costs[rcvdpkt.sourceid][i] = rcvdpkt.mincost[i];
-					if(i == this.nodename){
-						int currCostToSrc = this.costs[this.nodename][rcvdpkt.sourceid];
-						int srcCostToMe = rcvdpkt.mincost[i];
-						if(srcCostToMe < currCostToSrc){
-							this.costs[this.nodename][rcvdpkt.sourceid] = srcCostToMe;
+					if (this.lkcost[i] == INFINITY || this.nodename == i) {
+						continue;
+					} else {
+						int[] arr = this.costs[this.nodename];
+						int localCostForI = this.lkcost[i];
+						//if my neighbor
+						if(localCostForI != INFINITY){
+							//switch the changed node
+							for (int j = 0; j < changed.length; j++) {
+								if(changed[j]){
+									arr[j] = INFINITY;
+								}
+							}						
 						}
-					}
-				}
-
-				// TO do poison reverse we should make a packet here
-				// The values in the packet at the value of source ID should be
-				// infinity
-				for (int i = 0; i < 4; i++) {
-					int currCostForI = this.costs[rcvdpkt.sourceid][i];
-					int newCost = rcvdpkt.mincost[i];
-					if (newCost < currCostForI) {
-						this.costs[rcvdpkt.sourceid][i] = newCost;
-						this.costs[i][rcvdpkt.sourceid] = newCost;
-					}
-				}
-				boolean switchMade = false;
-				for (int i = 0; i < 4; i++) // Find the minumum for each path to
-											// each node.
-				{
-					int costToI = this.costs[this.nodename][i];
-					for (int j = 0; j < 4; j++) {
-						int costToNextHop = this.costs[this.nodename][j];
-						int theirCostToI = this.costs[j][i];
-						int totalCostWithPotentialHop = costToNextHop + theirCostToI;
-						if (totalCostWithPotentialHop < costToI) {
-							this.costs[this.nodename][i] = totalCostWithPotentialHop;
-							costToI = totalCostWithPotentialHop;
-							switchMade = true;
-						}
-
-					}
-				}
-				if (switchMade) {
-					for (int i = 0; i < 4; i++) {
-						if (this.lkcost[i] == INFINITY || this.nodename == i) {
-							continue;
-						} else {
-							int[] arr = this.costs[this.nodename];
-//							arr[i] = INFINITY;
-							Packet p = makePacket(i, arr);
-							NetworkSimulator.tolayer2(p);
-						}
+						
+						Packet p = makePacket(i, arr);
+						NetworkSimulator.tolayer2(p);
 					}
 				}
 			}
 		}
+		// }
 	}
 
 	/*
@@ -131,7 +148,6 @@ public class Node {
 	/* Prints the current costs to reaching other nodes in the network */
 	void printdt() {
 		switch (nodename) {
-
 		case 0:
 			System.out.printf("                via     \n");
 			System.out.printf("   D0 |    1     2 \n");
