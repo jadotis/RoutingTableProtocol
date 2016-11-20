@@ -83,13 +83,13 @@ public class Node {
 					int theirCostToI = this.costs[j][i]; //potential hop's cost to desired node
 					int totalCostWithPotentialHop = costToNextHop + theirCostToI;
 					if (totalCostWithPotentialHop < costToI) { //if current desired node's cost exceeds a new cost using a hop, take that route
-						System.out.println("___________________________________________");
-						System.out.println("THIS IS MY NODENAME: " + this.nodename);
-						System.out.println("TO THE DESTINATION: " + i);
-						System.out.println("THIS WAS MY ORIGINAL COST: " + costToI);
-						System.out.println("AND I'M GOING TO HOP VIA THIS NODE: " + j);
-						System.out.println("THIS IS THE TOTAL COST WHICH IS BETTER: " + totalCostWithPotentialHop);
-						System.out.println("___________________________________________");
+//						System.out.println("___________________________________________");
+//						System.out.println("THIS IS MY NODENAME: " + this.nodename);
+//						System.out.println("TO THE DESTINATION: " + i);
+//						System.out.println("THIS WAS MY ORIGINAL COST: " + costToI);
+//						System.out.println("AND I'M GOING TO HOP VIA THIS NODE: " + j);
+//						System.out.println("THIS IS THE TOTAL COST WHICH IS BETTER: " + totalCostWithPotentialHop);
+//						System.out.println("___________________________________________");
 						this.costs[this.nodename][i] = totalCostWithPotentialHop;
 						this.costs[i][this.nodename] = totalCostWithPotentialHop;
 						costToI = totalCostWithPotentialHop;
@@ -135,13 +135,13 @@ public class Node {
 
 						for(NodePoison np : toPoison){
 							if(np.hop == i){
-								arr[np.destination] = INFINITY;
-								System.out.println("___________________________________________");
-								System.out.println("THIS IS MY NODENAME: " + this.nodename);
-								System.out.println("TO THE DESTINATION: " + np.destination);
-								System.out.println("USING THE HOP: " + np.hop);
-								System.out.println("WITH THE IMPROVED VALUE: "  + np.value);
-								System.out.println("___________________________________________");
+//								arr[np.destination] = INFINITY;
+//								System.out.println("___________________________________________");
+//								System.out.println("THIS IS MY NODENAME: " + this.nodename);
+//								System.out.println("TO THE DESTINATION: " + np.destination);
+//								System.out.println("USING THE HOP: " + np.hop);
+//								System.out.println("WITH THE IMPROVED VALUE: "  + np.value);
+//								System.out.println("___________________________________________");
 									
 							}
 						}
@@ -161,7 +161,93 @@ public class Node {
 	 */
 	void linkhandler(int linkid, int newcost) {
 		this.lkcost[linkid] = newcost;
-		rtinit(newcost, this.lkcost);
+		this.costs[this.nodename] = this.lkcost; //We add the updated lkcosts to our costs array.
+		boolean switchMade = false;
+		ArrayList<NodePoison> toPoison = new ArrayList<NodePoison>();
+		
+		
+		
+		for (int i = 0; i < 4; i++) // Find the minumum for each path to
+									// each node.
+		{
+			int costToI = this.costs[this.nodename][i]; //get a desired node's current cost
+			for (int j = 0; j < 4; j++) {
+				if((this.nodename == 3 && i == 0) ||(this.nodename == 0 && i == 3) ){
+					continue;
+				}
+				int costToNextHop = this.costs[this.nodename][j]; //cost to a potential hop
+				int theirCostToI = this.costs[j][i]; //potential hop's cost to desired node
+				int totalCostWithPotentialHop = costToNextHop + theirCostToI;
+				if (totalCostWithPotentialHop < costToI) { //if current desired node's cost exceeds a new cost using a hop, take that route
+//					System.out.println("___________________________________________");
+//					System.out.println("THIS IS MY NODENAME: " + this.nodename);
+//					System.out.println("TO THE DESTINATION: " + i);
+//					System.out.println("THIS WAS MY ORIGINAL COST: " + costToI);
+//					System.out.println("AND I'M GOING TO HOP VIA THIS NODE: " + j);
+//					System.out.println("THIS IS THE TOTAL COST WHICH IS BETTER: " + totalCostWithPotentialHop);
+//					System.out.println("___________________________________________");
+					this.costs[this.nodename][i] = totalCostWithPotentialHop;
+					this.costs[i][this.nodename] = totalCostWithPotentialHop;
+					costToI = totalCostWithPotentialHop;
+					switchMade = true;
+					toPoison.add(new NodePoison(i, j, totalCostWithPotentialHop));
+
+				}
+			}
+		}
+		
+		//delete any duplicates in the array
+		for (int j = 0; j < toPoison.size(); j++) {
+			NodePoison np = toPoison.get(j);
+			int destination = np.destination;
+			int value = np.value;
+			for (int j2 = 0; j2 < toPoison.size(); j2++) {
+				if(j2 == j){
+					continue;
+				}
+				NodePoison np2 = toPoison.get(j2);
+				int destination2 = np2.destination;
+				int value2 = np2.value;
+				if(destination == destination2){
+					if(value > value2){
+						toPoison.remove(np);
+					}else{
+						toPoison.remove(np2);
+					}
+				}
+			}
+		}
+		
+		if (switchMade) {
+			for (int i = 0; i < 4; i++) {
+				if((this.nodename == 3 && i == 0) ||(this.nodename == 0 && i == 3) ){
+					continue;
+				}
+				
+				if (this.lkcost[i] == INFINITY || this.nodename == i) {
+					continue;
+				} else {
+					int[] arr = Arrays.copyOf(this.costs[this.nodename], this.costs[this.nodename].length);
+
+					for(NodePoison np : toPoison){
+						if(np.hop == i){
+							arr[np.destination] = INFINITY;
+//							System.out.println("___________________________________________");
+//							System.out.println("THIS IS MY NODENAME: " + this.nodename);
+//							System.out.println("TO THE DESTINATION: " + np.destination);
+//							System.out.println("USING THE HOP: " + np.hop);
+//							System.out.println("WITH THE IMPROVED VALUE: "  + np.value);
+//							System.out.println("___________________________________________");
+//								
+						}
+					}
+
+					Packet p = makePacket(i, arr);
+					NetworkSimulator.tolayer2(p);
+				}
+			}
+		}
+		printdt();
 	}
 
 	/* Prints the current costs to reaching other nodes in the network */
