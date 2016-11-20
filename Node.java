@@ -8,6 +8,8 @@
 import java.lang.Math;
 import java.util.*;
 
+import com.sun.scenario.animation.shared.InfiniteClipEnvelope;
+
 public class Node {
 
 	public static final int INFINITY = 9999;
@@ -52,32 +54,10 @@ public class Node {
 		if (rcvdpkt.destid != this.nodename) {
 			return;
 		} else {
-			// boolean shouldUpdateAll = false;
-			// If we have all INFINITY values for the sourceID we should update
-			// all.
-			// For the intial setup of the cost array
-			// for (int i = 0; i < 4; i++) {
-			// if (this.costs[rcvdpkt.sourceid][i] != INFINITY) {
-			// break;
-			// } else if (i == 3 && this.costs[rcvdpkt.sourceid][i] == INFINITY)
-			// {
-			// shouldUpdateAll = true;
-			// }
-			// }
-			// if (shouldUpdateAll) {
 			
 			for (int i = 0; i < 4; i++) {
 				// Updates all the values in the cost vector to what has
 				// been sent to us.
-//				this.costs[rcvdpkt.sourceid][i] = rcvdpkt.mincost[i];
-//				if (i == this.nodename) {
-//					int currCostToSrc = this.costs[this.nodename][rcvdpkt.sourceid];
-//					int srcCostToMe = rcvdpkt.mincost[i];
-//					if (srcCostToMe < currCostToSrc) {
-//						this.costs[this.nodename][rcvdpkt.sourceid] = srcCostToMe;
-//						this.costs[rcvdpkt.sourceid][this.nodename] = srcCostToMe;
-//					}
-//				}
 				int costValForI = rcvdpkt.mincost[i];
 				int myCostForSrcToI = this.costs[rcvdpkt.sourceid][i];
 				if(costValForI < myCostForSrcToI){
@@ -85,57 +65,94 @@ public class Node {
 					this.costs[i][rcvdpkt.sourceid] = costValForI;
 				}
 			}
-//			for (int i = 0; i < 4; i++) {
-//				int currCostForI = this.costs[rcvdpkt.sourceid][i];
-//				int newCost = rcvdpkt.mincost[i];
-//				if (newCost < currCostForI) {
-//					this.costs[rcvdpkt.sourceid][i] = newCost;
-//					this.costs[i][rcvdpkt.sourceid] = newCost;
-//				}
-//			}
+
 			boolean switchMade = false;
-			boolean[] changed = new boolean[4];
+			ArrayList<NodePoison> toPoison = new ArrayList<NodePoison>();
+			
+			
+			
 			for (int i = 0; i < 4; i++) // Find the minumum for each path to
 										// each node.
 			{
-				int costToI = this.costs[this.nodename][i];
+				int costToI = this.costs[this.nodename][i]; //get a desired node's current cost
 				for (int j = 0; j < 4; j++) {
-					int costToNextHop = this.costs[this.nodename][j];
-					int theirCostToI = this.costs[j][i];
+					if((this.nodename == 3 && i == 0) ||(this.nodename == 0 && i == 3) ){
+						continue;
+					}
+					int costToNextHop = this.costs[this.nodename][j]; //cost to a potential hop
+					int theirCostToI = this.costs[j][i]; //potential hop's cost to desired node
 					int totalCostWithPotentialHop = costToNextHop + theirCostToI;
-					if (totalCostWithPotentialHop < costToI) {
+					if (totalCostWithPotentialHop < costToI) { //if current desired node's cost exceeds a new cost using a hop, take that route
+						System.out.println("___________________________________________");
+						System.out.println("THIS IS MY NODENAME: " + this.nodename);
+						System.out.println("TO THE DESTINATION: " + i);
+						System.out.println("THIS WAS MY ORIGINAL COST: " + costToI);
+						System.out.println("AND I'M GOING TO HOP VIA THIS NODE: " + j);
+						System.out.println("THIS IS THE TOTAL COST WHICH IS BETTER: " + totalCostWithPotentialHop);
+						System.out.println("___________________________________________");
 						this.costs[this.nodename][i] = totalCostWithPotentialHop;
 						this.costs[i][this.nodename] = totalCostWithPotentialHop;
 						costToI = totalCostWithPotentialHop;
 						switchMade = true;
-						changed[i] = true;
+						toPoison.add(new NodePoison(i, j, totalCostWithPotentialHop));
+
 					}
 				}
 			}
+			
+			//delete any duplicates in the array
+			for (int j = 0; j < toPoison.size(); j++) {
+				NodePoison np = toPoison.get(j);
+				int destination = np.destination;
+				int value = np.value;
+				for (int j2 = 0; j2 < toPoison.size(); j2++) {
+					if(j2 == j){
+						continue;
+					}
+					NodePoison np2 = toPoison.get(j2);
+					int destination2 = np2.destination;
+					int value2 = np2.value;
+					if(destination == destination2){
+						if(value > value2){
+							toPoison.remove(np);
+						}else{
+							toPoison.remove(np2);
+						}
+					}
+				}
+			}
+			
 			if (switchMade) {
 				for (int i = 0; i < 4; i++) {
+					if((this.nodename == 3 && i == 0) ||(this.nodename == 0 && i == 3) ){
+						continue;
+					}
+					
 					if (this.lkcost[i] == INFINITY || this.nodename == i) {
 						continue;
 					} else {
-						int[] arr = this.costs[this.nodename];
-						int localCostForI = this.lkcost[i];
-						//if my neighbor
-						if(localCostForI != INFINITY){
-							//switch the changed node
-							for (int j = 0; j < changed.length; j++) {
-								if(changed[j]){
-									arr[j] = INFINITY;
-								}
-							}						
+						int[] arr = Arrays.copyOf(this.costs[this.nodename], this.costs[this.nodename].length);
+
+						for(NodePoison np : toPoison){
+							if(np.hop == i){
+								arr[np.destination] = INFINITY;
+								System.out.println("___________________________________________");
+								System.out.println("THIS IS MY NODENAME: " + this.nodename);
+								System.out.println("TO THE DESTINATION: " + np.destination);
+								System.out.println("USING THE HOP: " + np.hop);
+								System.out.println("WITH THE IMPROVED VALUE: "  + np.value);
+								System.out.println("___________________________________________");
+									
+							}
 						}
-						
+
 						Packet p = makePacket(i, arr);
 						NetworkSimulator.tolayer2(p);
 					}
 				}
 			}
 		}
-		// }
+//		printdt();
 	}
 
 	/*
@@ -143,6 +160,8 @@ public class Node {
 	 * newcost
 	 */
 	void linkhandler(int linkid, int newcost) {
+		this.lkcost[linkid] = newcost;
+		rtinit(newcost, this.lkcost);
 	}
 
 	/* Prints the current costs to reaching other nodes in the network */
@@ -189,7 +208,7 @@ public class Node {
 		Packet p = new Packet(this.nodename, destid, mincosts);
 		return p;
 	}
-
+	
 	void initArray() {
 		for (int i = 0; i < 4; i++) {
 			for (int j = 0; j < 4; j++) {
@@ -198,4 +217,15 @@ public class Node {
 		}
 	}
 
+}
+
+class NodePoison{
+	int destination;
+	int hop;
+	int value;
+	public NodePoison(int d, int h, int v){
+		this.destination = d;
+		this.hop = h;
+		this.value = v;
+	}
 }
